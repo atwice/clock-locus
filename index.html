@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Clockhand vector sum locus</title>
+<style>
+	.container { display: flex; justify-content: center; }
+	#clockcanvas { margin: 0 auto; }
+</style>
+</head>
+<body>
+	<div class="container">
+		<canvas id="clockcanvas" width="400" height="400"></canvas>
+	</div>
+	<script type="text/javascript">
+		var ctx = document.getElementById("clockcanvas").getContext("2d");
+		var scale = 100;
+		ctx.transform( 1, 0, 0, -1, 2*scale, 2*scale );
+		var time_multiplier = 60;
+		var trail_length = 1000;
+		var prev_clock = performance.now();
+
+		var Clockhand = function( length ) {
+			this.x = 0;
+			this.y = length;
+
+			this.rotate = function( angle_deg ) {
+				this.x = length*Math.sin( angle_deg );
+				this.y = length*Math.cos( angle_deg );
+			};
+
+			this.draw = function( context ) {
+				ctx.strokeStyle = 'black';
+				context.beginPath();
+				context.moveTo( 0, 0 );
+				context.lineTo( scale*this.x, scale*this.y );
+				context.stroke();
+			}
+		};
+
+		var Locus = function() {
+			var points = [];
+
+			this.addPoint = function( point ) {
+				points.unshift( point );
+				if( points.length > trail_length ) {
+					points.pop();
+				}
+			};
+
+			this.draw = function( context ) {
+				for( let i = 0; i < points.length; i++ ) {
+					let point = points[i];
+					context.fillStyle = 'blue';'rgba(255, 10, 10, 1)';
+					context.fillRect( scale*point.x, scale*point.y, 1, 1 );
+				}
+			};
+		};
+
+		var clockhand_hour = new Clockhand( 1 );
+		var clockhand_minute = new Clockhand( 1 );
+		var locus = new Locus();
+
+		function update_scene( time_s ) {
+			var minute_angle = ( time_s % 3600 ) / 10;
+			var hour_angle = ( time_s % 43200 ) / 120;
+			clockhand_minute.rotate( minute_angle );
+			clockhand_hour.rotate( hour_angle );
+			locus.addPoint( {
+				x: clockhand_hour.x + clockhand_minute.x,
+				y: clockhand_hour.y + clockhand_minute.y } );
+		}
+
+		function draw_scene() {
+			ctx.fillStyle = 'white';
+			ctx.clearRect( -200, -200, 400, 400 );
+			clockhand_hour.draw( ctx );
+			clockhand_minute.draw( ctx );
+			locus.draw( ctx );
+		}
+
+		var update_clock = function( now_clock ) {
+			update_scene( time_multiplier*(now_clock - prev_clock)/1000 );
+			draw_scene();
+			requestAnimationFrame( update_clock );
+		}
+
+		update_clock( prev_clock );
+	</script>
+</body>
+
+</html>
