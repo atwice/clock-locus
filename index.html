@@ -9,84 +9,150 @@
 </style>
 </head>
 <body>
+	<div>
+		<div>Длина часовой стрелки</div>
+		<select id="clockhandlength">
+			<option value="1.0">1.0</option>
+			<option value="0.7">0.7</option>
+			<option value="0.5">0.5</option>
+			<option value="0.2">0.2</option>
+		</select>
+	</div>
 	<div class="container">
 		<canvas id="clockcanvas" width="400" height="400"></canvas>
 	</div>
-	<script type="text/javascript">
-		var ctx = document.getElementById("clockcanvas").getContext("2d");
-		var scale = 100;
-		ctx.transform( 1, 0, 0, -1, 2*scale, 2*scale );
-		var time_multiplier = 60;
-		var trail_length = 1000;
-		var prev_clock = performance.now();
 
-		var Clockhand = function( length ) {
-			this.x = 0;
-			this.y = length;
 
-			this.rotate = function( angle_deg ) {
-				this.x = length*Math.sin( angle_deg );
-				this.y = length*Math.cos( angle_deg );
-			};
 
-			this.draw = function( context ) {
-				ctx.strokeStyle = 'black';
-				context.beginPath();
-				context.moveTo( 0, 0 );
-				context.lineTo( scale*this.x, scale*this.y );
-				context.stroke();
+<script type="text/javascript">
+	// константы
+	// размер стрелки 1.0, что соответствует 100px на canvas
+	var scale = 100;
+	// за одну секунду часы проходят 45 минут
+	var time_multiplier = 60*45;
+	// храним 1000 точек в ГМТ.
+	var trail_length = 1000;
+	
+	// управление анимацией
+	var is_animated = true;
+	var request_id;
+	function start_animation() {
+		request_id = requestAnimationFrame( update_clock );
+	}
+	function stop_animation() {
+		cancelAnimationFrame( request_id );
+	}
+
+	// прерываем анимацию в фоне
+	window.onblur = function() {
+		is_animated = false;
+		stop_animation();
+	};
+	window.onfocus = function() {
+		is_animated = true;
+		start_animation();
+	};
+
+
+	// рисование. Координаты 0,0 сдвинуты в центр канвы
+	var ctx = document.getElementById("clockcanvas").getContext("2d");
+	ctx.transform( 1, 0, 0, -1, 2*scale, 2*scale );
+
+
+	// Стрелка часов
+	var Clockhand = function( length ) {
+		this.x = 0;
+		this.y = length;
+
+		this.rotate = function( angle ) {
+			this.x = length*Math.sin( angle );
+			this.y = length*Math.cos( angle );
+		};
+
+		this.draw = function( context ) {
+			ctx.strokeStyle = 'black';
+			context.beginPath();
+			context.moveTo( 0, 0 );
+			context.lineTo( scale*this.x, scale*this.y );
+			context.stroke();
+		}
+	};
+
+	// Шлейф из точек
+	var Locus = function() {
+		// очередь точек для рисования
+		var points = [];
+
+		this.addPoint = function( point ) {
+			points.unshift( point );
+			if( points.length > trail_length ) {
+				points.pop();
 			}
 		};
 
-		var Locus = function() {
-			var points = [];
-
-			this.addPoint = function( point ) {
-				points.unshift( point );
-				if( points.length > trail_length ) {
-					points.pop();
-				}
-			};
-
-			this.draw = function( context ) {
-				for( let i = 0; i < points.length; i++ ) {
-					let point = points[i];
-					context.fillStyle = 'blue';'rgba(255, 10, 10, 1)';
-					context.fillRect( scale*point.x, scale*point.y, 1, 1 );
-				}
-			};
+		this.draw = function( context ) {
+			for( let i = 0; i < points.length; i++ ) {
+				let point = points[i];
+				context.fillStyle = '#FF0A0A';
+				context.fillRect( scale*point.x, scale*point.y, 1, 1 );
+			}
 		};
 
-		var clockhand_hour = new Clockhand( 1 );
-		var clockhand_minute = new Clockhand( 1 );
-		var locus = new Locus();
+		this.clear = function() {
+			points = [];
+		};
+	};
 
-		function update_scene( time_s ) {
-			var minute_angle = ( time_s % 3600 ) / 10;
-			var hour_angle = ( time_s % 43200 ) / 120;
-			clockhand_minute.rotate( minute_angle );
-			clockhand_hour.rotate( hour_angle );
-			locus.addPoint( {
-				x: clockhand_hour.x + clockhand_minute.x,
-				y: clockhand_hour.y + clockhand_minute.y } );
+	// сцена
+	var clockhand_hour = new Clockhand( 1 );
+	var clockhand_minute = new Clockhand( 1 );
+	var locus = new Locus();
+
+	// пересчитываем модель
+	function update_scene( time_s ) {
+		var minute_angle = 2*Math.PI*( time_s % 3600 ) / 3600;
+		var hour_angle = 2*Math.PI*( time_s % 43200 ) / 43200;
+		clockhand_minute.rotate( minute_angle );
+		clockhand_hour.rotate( hour_angle );
+		locus.addPoint( {
+			x: clockhand_hour.x + clockhand_minute.x,
+			y: clockhand_hour.y + clockhand_minute.y } );
+	}
+
+	// рисуем сцену
+	function draw_scene() {
+		ctx.fillStyle = 'white';
+		ctx.clearRect( -200, -200, 400, 400 );
+		clockhand_hour.draw( ctx );
+		clockhand_minute.draw( ctx );
+		locus.draw( ctx );
+	}
+
+	// функция кадра анимации
+	var update_clock = function( now_clock ) {
+		var elapsed_sec = ((now_clock - prev_clock)/1000) % 43200;
+		update_scene( time_multiplier*elapsed_sec );
+		draw_scene();
+		if( is_animated ) {
+			// нужно запрость следующий кадр анимации
+			start_animation();
 		}
+	};
 
-		function draw_scene() {
-			ctx.fillStyle = 'white';
-			ctx.clearRect( -200, -200, 400, 400 );
-			clockhand_hour.draw( ctx );
-			clockhand_minute.draw( ctx );
-			locus.draw( ctx );
-		}
+	// Длина часовой стрелки
+	var hour_length = document.getElementById("clockhandlength");
+	hour_length.onchange = function() {
+		stop_animation();
+		locus.clear();
+		prev_clock = performance.now();
+		clockhand_hour = new Clockhand( 0 + hour_length.value );
+		start_animation();
+	};
 
-		var update_clock = function( now_clock ) {
-			update_scene( time_multiplier*(now_clock - prev_clock)/1000 );
-			draw_scene();
-			requestAnimationFrame( update_clock );
-		}
-
-		update_clock( prev_clock );
-	</script>
+	// начинаем анимацию
+	var prev_clock = performance.now();
+	start_animation();
+</script>
 </body>
 
 </html>
