@@ -19,15 +19,15 @@
 		</select>
 	</div>
 	<div class="container">
-		<canvas id="clockcanvas" width="400" height="400"></canvas>
+		<canvas id="clockcanvas" width="800" height="800"></canvas>
 	</div>
 
 
 
 <script type="text/javascript">
 	// константы
-	// размер стрелки 1.0, что соответствует 100px на canvas
-	var scale = 100;
+	// размер стрелки 1.0, что соответствует 200px на canvas
+	var scale = 200;
 	// за одну секунду часы проходят 45 минут
 	var time_multiplier = 60*45;
 	// храним 1000 точек в ГМТ.
@@ -94,7 +94,7 @@
 			for( let i = 0; i < points.length; i++ ) {
 				let point = points[i];
 				context.fillStyle = '#FF0A0A';
-				context.fillRect( scale*point.x, scale*point.y, 1, 1 );
+				context.fillRect( scale*point.x, scale*point.y, 2, 2 );
 			}
 		};
 
@@ -122,7 +122,7 @@
 	// рисуем сцену
 	function draw_scene() {
 		ctx.fillStyle = 'white';
-		ctx.clearRect( -200, -200, 400, 400 );
+		ctx.clearRect( -2*scale, -2*scale, 4*scale, 4*scale );
 		clockhand_hour.draw( ctx );
 		clockhand_minute.draw( ctx );
 		locus.draw( ctx );
